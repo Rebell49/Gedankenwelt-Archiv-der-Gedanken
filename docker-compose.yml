@@ -1,0 +1,142 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: gedankenwelt-postgres
+    environment:
+      POSTGRES_USER: gedankenwelt
+      POSTGRES_PASSWORD: gedankenwelt_dev_password
+      POSTGRES_DB: gedankenwelt
+      POSTGRES_INITDB_ARGS: "-c max_connections=100 -c shared_buffers=256MB -c effective_cache_size=1GB"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gedankenwelt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gedankenwelt-network
+    restart: unless-stopped
+
+  # Redis Cache (optional; uncomment for >100 concurrent users)
+  redis:
+    image: redis:7.2-alpine
+    container_name: gedankenwelt-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - gedankenwelt-network
+    restart: unless-stopped
+    profiles:
+      - with-cache
+
+  # Backend API
+  backend:
+    build:
+      context: ./Codebase/backend/backend
+      dockerfile: Dockerfile
+    container_name: gedankenwelt-backend
+    environment:
+      DATABASE_URL: "postgresql://gedankenwelt:gedankenwelt_dev_password@postgres:5432/gedankenwelt"
+      JWT_SECRET: "dev-secret-key-change-in-production"
+      JWT_REFRESH_SECRET: "dev-refresh-secret-change-in-production"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Error: OPENAI_API_KEY not set}
+      OPENAI_MODEL: "gpt-4o-mini"
+      NODE_ENV: "development"
+      PORT: 3001
+      FRONTEND_URL: "http://localhost:5173"
+      LOG_LEVEL: "info"
+      REDIS_URL: "redis://redis:6379"
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+        required: false
+    volumes:
+      - ./Codebase/backend/backend/src:/app/src
+    networks:
+      - gedankenwelt-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend App
+  frontend:
+    build:
+      context: ./Codebase/backend/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "http://localhost:3001"
+    container_name: gedankenwelt-frontend
+    environment:
+      VITE_API_URL: "http://localhost:3001"
+      VITE_ENV: "development"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./Codebase/backend/frontend/src:/app/src
+      - /app/node_modules
+    networks:
+      - gedankenwelt-network
+    restart: unless-stopped
+
+  # PgBouncer Connection Pooler (for >1000 concurrent users)
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: gedankenwelt-pgbouncer
+    environment:
+      POOL_MODE: "transaction"
+      MAX_CLIENT_CONN: "1000"
+      DEFAULT_POOL_SIZE: "25"
+      MIN_POOL_SIZE: "10"
+      RESERVE_POOL_SIZE: "5"
+      RESERVE_POOL_TIMEOUT: "3"
+      SERVER_LIFETIME: "3600"
+      DATABASE_URL: "postgresql://gedankenwelt:gedankenwelt_dev_password@postgres:5432/gedankenwelt"
+    ports:
+      - "6432:6432"
+    depends_on:
+      - postgres
+    networks:
+      - gedankenwelt-network
+    profiles:
+      - with-pooler
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  gedankenwelt-network:
+    driver: bridge
+
+# Usage:
+# Development (minimal):       docker-compose up -d
+# With cache layer:             docker-compose --profile with-cache up -d
+# With connection pooler:       docker-compose --profile with-pooler up -d
+# Full production-ready setup:  docker-compose --profile with-cache --profile with-pooler up -d
