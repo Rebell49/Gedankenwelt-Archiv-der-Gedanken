@@ -10,21 +10,31 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState('stats')
 
   useEffect(() => {
+    const abortController = new AbortController()
+
     const fetchData = async () => {
       try {
         const [statsRes, pendingRes] = await Promise.all([
-          api.get('/admin/stats'),
-          api.get('/admin/moderation/pending')
+          api.get('/admin/stats', { signal: abortController.signal }),
+          api.get('/admin/moderation/pending', { signal: abortController.signal })
         ])
-        setStats(statsRes.data)
-        setPendingThoughts(pendingRes.data.thoughts)
+        if (!abortController.signal.aborted) {
+          setStats(statsRes.data)
+          setPendingThoughts(pendingRes.data.thoughts)
+        }
       } catch (error) {
-        console.error('Error fetching admin data:', error)
+        if (!abortController.signal.aborted) {
+          console.error('Error fetching admin data:', error)
+        }
       } finally {
-        setLoading(false)
+        if (!abortController.signal.aborted) {
+          setLoading(false)
+        }
       }
     }
     fetchData()
+
+    return () => abortController.abort()
   }, [])
 
   const handleApprove = async (thoughtId) => {
