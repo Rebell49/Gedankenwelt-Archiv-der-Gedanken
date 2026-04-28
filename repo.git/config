@@ -1,0 +1,9 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = true
+[remote "origin"]
+	url = /workspaces/Gedankenwelt-Archiv-der-Gedanken/.
+	tagOpt = --no-tags
+	fetch = +refs/*:refs/*
+	mirror = true

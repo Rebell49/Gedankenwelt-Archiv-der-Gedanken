@@ -1,0 +1,6 @@
+f3f934660f54544e5c483177db576bcf792b6f49,MODIFY,regular-file,.env.example,842,10
+b734548ae6540c5f52e594f8f65c5bfbf82190aa,MODIFY,regular-file,Codebase/backend/backend/scripts/validate-env.js,517,9
+0daf204923d31dd8ce18ae89c052240e72f9344c,MODIFY,regular-file,Codebase/backend/backend/src/services/moderation.service.js,4308,14
+72868993b09e27d619eb46253ffe7a7f5dad7d19,MODIFY,regular-file,DEPLOYMENT_CHECKLIST.md,6408,9
+2888fcc5e38e67dd4c3cd0708a4206aaa9e393b5,MODIFY,regular-file,README.md,14720,62;404-405;409
+68e0bf4c2c942b7ef2f7b878630b6e19fc4bb9aa,MODIFY,regular-file,docker-compose.yml,3884,54
