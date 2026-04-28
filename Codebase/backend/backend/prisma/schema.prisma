@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique @db.VarChar(255)
+  username      String     @unique @db.VarChar(100)
+  passwordHash  String     @db.VarChar(255)
+  
+  // Profile information
+  displayName   String?    @db.VarChar(150)
+  avatar        String?    @db.Text // URL to avatar image
+  bio           String?    @db.Text
+  
+  // Authentication
+  emailVerified DateTime?
+  lastLogin     DateTime?
+  
+  // Relationships
+  createdThoughts  Thought[]
+  createdPlanets   Planet[]
+  moderatorOf      Thought[] @relation("ThoughtModerators")
+  
+  // Admin flag
+  isAdmin       Boolean    @default(false)
+  
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  // Indexes for common queries
+  @@index([email])
+  @@index([username])
+  @@index([createdAt])
+}
+
+// Planet model - thematic grouping for thoughts
+model Planet {
+  id            String     @id @default(cuid())
+  name          String     @db.VarChar(150)
+  description   String?    @db.Text
+  color         String     @default("#3B82F6") @db.VarChar(7) // Hex color
+  imageUrl      String?    @db.Text
+  
+  // Creator
+  creatorId     String
+  creator       User       @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  // Thoughts on this planet
+  thoughts      Thought[]
+  
+  // Statistics
+  thoughtCount  Int        @default(0)
+  followersCount Int       @default(0)
+  
+  // Visibility
+  isPublic      Boolean    @default(true)
+  
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  @@index([creatorId])
+  @@index([createdAt])
+  @@index([isPublic])
+}
+
+// Thought model - individual submissions
+model Thought {
+  id              String     @id @default(cuid())
+  content         String     @db.Text
+  
+  // Author
+  authorId        String
+  author          User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  // Planet
+  planetId        String
+  planet          Planet     @relation(fields: [planetId], references: [id], onDelete: Cascade)
+  
+  // Moderation
+  status          ModerationStatus @default(PENDING)
+  moderatorId     String?
+  moderator       User?      @relation("ThoughtModerators", fields: [moderatorId], references: [id], onDelete: SetNull)
+  moderationReason String?   @db.Text
+  
+  // AI flags
+  isSpam          Boolean    @default(false)
+  isOffensive     Boolean    @default(false)
+  flaggedBy       String?    @db.Text // JSON array of reasons
+  
+  // Engagement
+  likes           Int        @default(0)
+  likedBy         String[]   @default([]) // User IDs as array
+  
+  // Timestamps
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  
+  @@index([authorId])
+  @@index([planetId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([isOffensive])
+  @@index([isSpam])
+}
+
+// Admin moderation log
+model ModerationLog {
+  id            String     @id @default(cuid())
+  action        String     @db.VarChar(50) // APPROVED, REJECTED, FLAGGED
+  targetId      String     // ID of moderated content
+  targetType    String     @db.VarChar(50) // THOUGHT, USER
+  
+  reason        String     @db.Text
+  metadata      String?    @db.JsonB // Additional data
+  
+  // Moderator
+  adminId       String
+  admin         User?      @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  
+  createdAt     DateTime   @default(now())
+  
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([targetId])
+}
+
+enum ModerationStatus {
+  PENDING      // Awaiting AI moderation
+  APPROVED     // Passed moderation
+  REJECTED     // Failed moderation
+  FLAGGED      // Flagged for admin review
+  ARCHIVED     // Archived by admin
+}
