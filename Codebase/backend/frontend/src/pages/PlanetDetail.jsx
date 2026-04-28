@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -11,6 +11,7 @@ export default function PlanetDetail() {
   const [planet, setPlanet] = useState(null)
   const [thoughts, setThoughts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [thoughtContent, setThoughtContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -25,7 +26,7 @@ export default function PlanetDetail() {
         setThoughts(thoughtsRes.data.thoughts)
       } catch (error) {
         console.error('Error fetching data:', error)
-        navigate('/')
+        setError('Failed to load planet data')
       } finally {
         setLoading(false)
       }
@@ -33,7 +34,7 @@ export default function PlanetDetail() {
     fetchData()
   }, [id, navigate])
 
-  const handleSubmitThought = async (e) => {
+  const handleSubmitThought = useCallback(async (e) => {
     e.preventDefault()
     if (!user) {
       navigate('/')
@@ -49,12 +50,19 @@ export default function PlanetDetail() {
       setThoughtContent('')
     } catch (error) {
       console.error('Error submitting thought:', error)
+      setError('Failed to submit thought')
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [user, id, thoughtContent, thoughts, navigate])
 
   if (loading) return <LoadingSpinner />
+
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-red-400">{error}</p>
+    </div>
+  )
 
   if (!planet) return <div>Planet not found</div>
 

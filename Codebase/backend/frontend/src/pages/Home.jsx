@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
 import { useToast } from '../components/common/Toast'
@@ -20,14 +20,14 @@ export default function Home() {
     navigate('/universe')
   }
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }))
-  }
+  }, [])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
     setLoading(true)
 
@@ -46,7 +46,7 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isLogin, formData, login, register, addToast, navigate])
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">

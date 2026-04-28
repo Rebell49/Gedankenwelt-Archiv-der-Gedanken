@@ -12,6 +12,7 @@ export default function UniverseView() {
   const planetsRef = useRef([])
   const [planets, setPlanets] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export default function UniverseView() {
         setPlanets(res.data.planets)
       } catch (error) {
         console.error('Error fetching planets:', error)
+        setError('Failed to load planets')
       } finally {
         setLoading(false)
       }
@@ -148,6 +150,12 @@ export default function UniverseView() {
   }, [planets, navigate])
 
   if (loading) return <LoadingSpinner />
+
+  if (error) return (
+    <div className="w-full h-full flex items-center justify-center">
+      <p className="text-red-400">{error}</p>
+    </div>
+  )
 
   return (
     <div ref={containerRef} className="w-full h-full relative">
