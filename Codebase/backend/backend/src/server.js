@@ -9,9 +9,11 @@ import anchorsRoutes from './routes/anchors.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { requestLogger } from './middleware/logger.middleware.js';
+import { validateEnv } from '../scripts/validate-env.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
+validateEnv();
 
 const app = express();
 export const prisma = new PrismaClient();

@@ -2,7 +2,7 @@ import express from 'express';
 import authService from '../services/auth.service.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { validate, schemas } from '../middleware/validate.middleware.js';
-import { AppError } from '../middleware/errorHandler.middleware.js';
+import { AppError, success } from '../middleware/errorHandler.middleware.js';
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router.post('/register', validate(schemas.auth.register), async (req, res, next)
   try {
     const { email, username, password } = req.body;
     const result = await authService.register(email, username, password);
-    res.status(201).json(result);
+    return success(res, result, 201);
   } catch (error) {
     next(error);
   }
@@ -22,7 +22,7 @@ router.post('/login', validate(schemas.auth.login), async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const result = await authService.login(email, password);
-    res.json(result);
+    return success(res, result);
   } catch (error) {
     next(error);
   }
@@ -33,7 +33,7 @@ router.post('/refresh', validate(schemas.auth.refresh), async (req, res, next) =
   try {
     const { refreshToken } = req.body;
     const tokens = await authService.refreshToken(refreshToken);
-    res.json(tokens);
+    return success(res, tokens);
   } catch (error) {
     next(error);
   }
@@ -43,7 +43,7 @@ router.post('/refresh', validate(schemas.auth.refresh), async (req, res, next) =
 router.get('/profile', authenticate, async (req, res, next) => {
   try {
     const user = await authService.getUserProfile(req.user.userId);
-    res.json(user);
+    return success(res, user);
   } catch (error) {
     next(error);
   }
@@ -58,7 +58,7 @@ router.put('/profile', authenticate, validate(schemas.auth.updateProfile), async
       avatar,
       bio,
     });
-    res.json(user);
+    return success(res, user);
   } catch (error) {
     next(error);
   }

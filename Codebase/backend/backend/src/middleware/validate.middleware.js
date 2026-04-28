@@ -1,17 +1,56 @@
 import { z } from 'zod';
 
+const formatValidationError = (errors) => {
+  return errors.map(e => ({
+    path: e.path.join('.'),
+    message: e.message,
+  }));
+};
+
 export const validate = (schema) => (req, res, next) => {
-  try {
-    const validated = schema.parse({
-      body: req.body,
-      query: req.query,
-      params: req.params,
+  const validated = {
+    body: req.body,
+    query: req.query,
+    params: req.params,
+  };
+
+  const parseResult = {
+    body: schema.body ? schema.body.safeParse(req.body) : { success: true, data: req.body },
+    query: schema.query ? schema.query.safeParse(req.query) : { success: true, data: req.query },
+    params: schema.params ? schema.params.safeParse(req.params) : { success: true, data: req.params },
+  };
+
+  if (!parseResult.body.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation Error',
+      details: formatValidationError(parseResult.body.error.errors),
     });
-    req.validated = validated;
-    next();
-  } catch (error) {
-    next(error);
   }
+
+  if (!parseResult.query.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation Error',
+      details: formatValidationError(parseResult.query.error.errors),
+    });
+  }
+
+  if (!parseResult.params.success) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid route parameters',
+      details: formatValidationError(parseResult.params.error.errors),
+    });
+  }
+
+  req.validated = {
+    body: parseResult.body.data,
+    query: parseResult.query.data,
+    params: parseResult.params.data,
+  };
+
+  next();
 };
 
 // Validation schemas
@@ -60,6 +99,36 @@ export const schemas = {
         id: z.string(),
       }),
     }),
+    getPlanet: z.object({
+      params: z.object({
+        id: z.string().min(1, 'Planet ID is required'),
+      }),
+    }),
+    getThought: z.object({
+      params: z.object({
+        id: z.string().min(1, 'Thought ID is required'),
+      }),
+    }),
+    getThoughtsByPlanet: z.object({
+      params: z.object({
+        planetId: z.string().min(1, 'Planet ID is required'),
+      }),
+      query: z.object({
+        limit: z.string().optional(),
+        offset: z.string().optional(),
+        sortBy: z.string().optional(),
+        order: z.string().optional(),
+        status: z.string().optional(),
+      }),
+    }),
+    listPlanets: z.object({
+      query: z.object({
+        limit: z.string().optional(),
+        offset: z.string().optional(),
+        sortBy: z.string().optional(),
+        order: z.string().optional(),
+      }),
+    }),
   },
   planets: {
     create: z.object({
@@ -67,6 +136,47 @@ export const schemas = {
         name: z.string().min(1, 'Name is required').max(150),
         description: z.string().max(1000).optional(),
         color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
+      }),
+    }),
+  },
+  admin: {
+    moderationPending: z.object({
+      query: z.object({
+        limit: z.string().optional(),
+        offset: z.string().optional(),
+      }),
+    }),
+    moderationAction: z.object({
+      params: z.object({
+        thoughtId: z.string().min(1, 'Thought ID is required'),
+      }),
+      body: z.object({
+        reason: z.string().optional(),
+      }).optional(),
+    }),
+    rejection: z.object({
+      params: z.object({
+        thoughtId: z.string().min(1, 'Thought ID is required'),
+      }),
+      body: z.object({
+        reason: z.string().min(1, 'Rejection reason is required'),
+      }),
+    }),
+    deleteUser: z.object({
+      params: z.object({
+        userId: z.string().min(1, 'User ID is required'),
+      }),
+    }),
+    usersList: z.object({
+      query: z.object({
+        limit: z.string().optional(),
+        offset: z.string().optional(),
+      }),
+    }),
+    logs: z.object({
+      query: z.object({
+        limit: z.string().optional(),
+        offset: z.string().optional(),
       }),
     }),
   },

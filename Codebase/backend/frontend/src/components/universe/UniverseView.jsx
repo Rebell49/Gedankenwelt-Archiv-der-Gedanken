@@ -10,6 +10,7 @@ export default function UniverseView() {
   const cameraRef = useRef(null)
   const rendererRef = useRef(null)
   const planetsRef = useRef([])
+  const isVisibleRef = useRef(true)
 
   const animationRef = useRef(null)
 
@@ -110,13 +111,17 @@ export default function UniverseView() {
       const angle = (index / planets.length) * Math.PI * 2
       const radius = 30
 
+      const baseZ = (Math.random() - 0.5) * 20
       mesh.position.set(
         Math.cos(angle) * radius,
         Math.sin(angle) * radius,
-        (Math.random() - 0.5) * 20
+        baseZ
       )
 
-      mesh.userData = { planetId: planet.id }
+      mesh.userData = {
+        planetId: planet.id,
+        baseZ,
+      }
 
       scene.add(mesh)
       planetMeshes.push(mesh)
@@ -158,7 +163,7 @@ export default function UniverseView() {
       planetMeshes.forEach((mesh, i) => {
         mesh.rotation.x += 0.001
         mesh.rotation.y += 0.002
-        mesh.position.z += Math.sin(time + i) * 0.01
+        mesh.position.z = mesh.userData.baseZ + Math.sin(time + i) * 0.5
       })
 
       renderer.render(scene, camera)
@@ -181,7 +186,18 @@ export default function UniverseView() {
       renderer.setSize(w, h)
     }
 
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        isVisibleRef.current = false
+        cancelAnimationFrame(animationRef.current)
+      } else if (!isVisibleRef.current) {
+        isVisibleRef.current = true
+        animate()
+      }
+    }
+
     window.addEventListener('resize', onResize)
+    document.addEventListener('visibilitychange', onVisibilityChange)
 
     /**
      * CLEANUP (FIXED + SAFE)
@@ -195,7 +211,11 @@ export default function UniverseView() {
       planetMeshes.forEach(mesh => {
         scene.remove(mesh)
         mesh.geometry.dispose()
-        mesh.material.dispose()
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach((m) => m.dispose())
+        } else if (mesh.material) {
+          mesh.material.dispose()
+        }
       })
 
       geometry.dispose()
@@ -203,6 +223,9 @@ export default function UniverseView() {
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement)
       }
+
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('resize', onResize)
 
       renderer.dispose()
     }

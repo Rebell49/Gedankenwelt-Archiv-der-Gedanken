@@ -27,6 +27,14 @@ export default function Home() {
     }
   }, [user, navigate])
 
+  useEffect(() => {
+    setFormData({
+      email: '',
+      password: '',
+      username: '',
+    })
+  }, [isLogin])
+
   /**
    * INPUT HANDLER (STABLE + SAFE)
    */

@@ -1,6 +1,7 @@
 import express from 'express';
 import adminService from '../services/admin.service.js';
 import { authenticate, requireAdmin } from '../middleware/auth.middleware.js';
+import { validate, schemas } from '../middleware/validate.middleware.js';
 import { AppError } from '../middleware/errorHandler.middleware.js';
 
 const router = express.Router();
@@ -9,7 +10,7 @@ const router = express.Router();
 router.use(authenticate, requireAdmin);
 
 // Get pending thoughts for moderation
-router.get('/moderation/pending', async (req, res, next) => {
+router.get('/moderation/pending', validate(schemas.admin.moderationPending), async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = parseInt(req.query.offset) || 0;
@@ -21,7 +22,7 @@ router.get('/moderation/pending', async (req, res, next) => {
 });
 
 // Approve thought
-router.post('/moderation/approve/:thoughtId', async (req, res, next) => {
+router.post('/moderation/approve/:thoughtId', validate(schemas.admin.moderationAction), async (req, res, next) => {
   try {
     const { reason } = req.body;
     const thought = await adminService.approveThought(req.params.thoughtId, req.user.userId, reason);
@@ -32,7 +33,7 @@ router.post('/moderation/approve/:thoughtId', async (req, res, next) => {
 });
 
 // Reject thought
-router.post('/moderation/reject/:thoughtId', async (req, res, next) => {
+router.post('/moderation/reject/:thoughtId', validate(schemas.admin.rejection), async (req, res, next) => {
   try {
     const { reason } = req.body;
     if (!reason) {
@@ -46,7 +47,7 @@ router.post('/moderation/reject/:thoughtId', async (req, res, next) => {
 });
 
 // Archive thought
-router.post('/moderation/archive/:thoughtId', async (req, res, next) => {
+router.post('/moderation/archive/:thoughtId', validate(schemas.admin.moderationAction), async (req, res, next) => {
   try {
     const { reason } = req.body;
     const thought = await adminService.archiveThought(req.params.thoughtId, req.user.userId, reason);
@@ -67,7 +68,7 @@ router.get('/stats', async (req, res, next) => {
 });
 
 // Get all users
-router.get('/users', async (req, res, next) => {
+router.get('/users', validate(schemas.admin.usersList), async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = parseInt(req.query.offset) || 0;
@@ -79,7 +80,7 @@ router.get('/users', async (req, res, next) => {
 });
 
 // Get moderation logs
-router.get('/logs', async (req, res, next) => {
+router.get('/logs', validate(schemas.admin.logs), async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = parseInt(req.query.offset) || 0;
@@ -91,7 +92,7 @@ router.get('/logs', async (req, res, next) => {
 });
 
 // Delete user
-router.delete('/users/:userId', async (req, res, next) => {
+router.delete('/users/:userId', validate(schemas.admin.deleteUser), async (req, res, next) => {
   try {
     const result = await adminService.deleteUser(req.params.userId, req.user.userId);
     res.json(result);

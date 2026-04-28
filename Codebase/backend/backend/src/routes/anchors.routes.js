@@ -2,7 +2,7 @@ import express from 'express';
 import anchorsService from '../services/anchors.service.js';
 import { authenticate, optionalAuth } from '../middleware/auth.middleware.js';
 import { validate, schemas } from '../middleware/validate.middleware.js';
-import { AppError } from '../middleware/errorHandler.middleware.js';
+import { AppError, success } from '../middleware/errorHandler.middleware.js';
 
 const router = express.Router();
 
@@ -13,14 +13,14 @@ router.post('/planets', authenticate, validate(schemas.planets.create), async (r
   try {
     const { name, description, color } = req.body;
     const planet = await anchorsService.createPlanet(req.user.userId, name, description, color);
-    res.status(201).json(planet);
+    return success(res, planet, 201);
   } catch (error) {
     next(error);
   }
 });
 
 // Get all planets
-router.get('/planets', optionalAuth, async (req, res, next) => {
+router.get('/planets', optionalAuth, validate(schemas.anchors.listPlanets), async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = parseInt(req.query.offset) || 0;
@@ -34,17 +34,17 @@ router.get('/planets', optionalAuth, async (req, res, next) => {
       order,
       isPublic: true,
     });
-    res.json(result);
+    return success(res, result);
   } catch (error) {
     next(error);
   }
 });
 
 // Get single planet
-router.get('/planets/:id', optionalAuth, async (req, res, next) => {
+router.get('/planets/:id', optionalAuth, validate(schemas.anchors.getPlanet), async (req, res, next) => {
   try {
     const planet = await anchorsService.getPlanet(req.params.id);
-    res.json(planet);
+    return success(res, planet);
   } catch (error) {
     next(error);
   }
@@ -57,14 +57,14 @@ router.post('/planets/:planetId/thoughts', authenticate, validate(schemas.anchor
   try {
     const { content } = req.body;
     const thought = await anchorsService.createThought(req.user.userId, req.params.planetId, content);
-    res.status(201).json(thought);
+    return success(res, thought, 201);
   } catch (error) {
     next(error);
   }
 });
 
 // Get thoughts by planet
-router.get('/planets/:planetId/thoughts', optionalAuth, async (req, res, next) => {
+router.get('/planets/:planetId/thoughts', optionalAuth, validate(schemas.anchors.getThoughtsByPlanet), async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const offset = parseInt(req.query.offset) || 0;
@@ -79,17 +79,17 @@ router.get('/planets/:planetId/thoughts', optionalAuth, async (req, res, next) =
       order,
       status,
     });
-    res.json(result);
+    return success(res, result);
   } catch (error) {
     next(error);
   }
 });
 
 // Get single thought
-router.get('/thoughts/:id', optionalAuth, async (req, res, next) => {
+router.get('/thoughts/:id', optionalAuth, validate(schemas.anchors.getThought), async (req, res, next) => {
   try {
     const thought = await anchorsService.getThought(req.params.id);
-    res.json(thought);
+    return success(res, thought);
   } catch (error) {
     next(error);
   }
@@ -103,7 +103,7 @@ router.put('/thoughts/:id', authenticate, validate(schemas.anchors.update), asyn
       return next(new AppError('Content is required', 400));
     }
     const thought = await anchorsService.updateThought(req.params.id, req.user.userId, content);
-    res.json(thought);
+    return success(res, thought);
   } catch (error) {
     next(error);
   }
@@ -113,7 +113,7 @@ router.put('/thoughts/:id', authenticate, validate(schemas.anchors.update), asyn
 router.delete('/thoughts/:id', authenticate, async (req, res, next) => {
   try {
     const result = await anchorsService.deleteThought(req.params.id, req.user.userId);
-    res.json(result);
+    return success(res, result);
   } catch (error) {
     next(error);
   }
@@ -123,7 +123,7 @@ router.delete('/thoughts/:id', authenticate, async (req, res, next) => {
 router.post('/thoughts/:id/like', authenticate, async (req, res, next) => {
   try {
     const thought = await anchorsService.toggleLike(req.params.id, req.user.userId);
-    res.json(thought);
+    return success(res, thought);
   } catch (error) {
     next(error);
   }
