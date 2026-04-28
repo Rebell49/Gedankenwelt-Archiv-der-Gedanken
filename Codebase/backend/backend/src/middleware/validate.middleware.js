@@ -35,11 +35,20 @@ export const schemas = {
         refreshToken: z.string().min(1, 'Refresh token is required'),
       }),
     }),
+    updateProfile: z.object({
+      body: z.object({
+        displayName: z.string().min(1).max(150).optional(),
+        avatar: z.string().url('Avatar must be a valid URL').optional(),
+        bio: z.string().max(500).optional(),
+      }),
+    }),
   },
   anchors: {
     create: z.object({
       body: z.object({
         content: z.string().min(1, 'Content is required').max(5000),
+      }),
+      params: z.object({
         planetId: z.string().min(1, 'Planet ID is required'),
       }),
     }),

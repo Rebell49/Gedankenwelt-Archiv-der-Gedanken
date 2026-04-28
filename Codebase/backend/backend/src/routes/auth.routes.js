@@ -50,7 +50,7 @@ router.get('/profile', authenticate, async (req, res, next) => {
 });
 
 // Update profile
-router.put('/profile', authenticate, async (req, res, next) => {
+router.put('/profile', authenticate, validate(schemas.auth.updateProfile), async (req, res, next) => {
   try {
     const { displayName, avatar, bio } = req.body;
     const user = await authService.updateProfile(req.user.userId, {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/auth.store'
 import { useNavigate } from 'react-router-dom'
 
@@ -33,8 +33,20 @@ export default function Profile() {
     }
   }
 
+  useEffect(() => {
+    if (!user) {
+      navigate('/')
+      return
+    }
+
+    setFormData({
+      displayName: user.displayName || '',
+      avatar: user.avatar || '',
+      bio: user.bio || '',
+    })
+  }, [user, navigate])
+
   if (!user) {
-    navigate('/')
     return null
   }
 
