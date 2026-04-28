@@ -1,8 +1,29 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import { useAuthStore } from '../store/auth.store'
+
+const ThoughtItem = React.memo(({ thought }) => (
+  <div className="thought-bubble">
+    <div className="flex items-start justify-between mb-2">
+      <div>
+        <p className="font-semibold">{thought.author.displayName}</p>
+        <p className="text-xs text-slate-400">@{thought.author.username}</p>
+      </div>
+      <span className="text-xs text-slate-400">
+        {new Date(thought.createdAt).toLocaleDateString()}
+      </span>
+    </div>
+    <p className="mb-4">{thought.content}</p>
+    <div className="flex space-x-4 text-sm text-slate-400">
+      <button className="hover:text-blue-400">💚 {thought.likes}</button>
+      {thought.status === 'PENDING' && (
+        <span className="text-yellow-400">Awaiting moderation...</span>
+      )}
+    </div>
+  </div>
+))
 
 export default function PlanetDetail() {
   const { id } = useParams()
@@ -16,23 +37,34 @@ export default function PlanetDetail() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    const abortController = new AbortController()
+
     const fetchData = async () => {
       try {
+        setLoading(true)
+        setError(null)
         const [planetRes, thoughtsRes] = await Promise.all([
-          api.get(`/anchors/planets/${id}`),
-          api.get(`/anchors/planets/${id}/thoughts`)
+          api.get(`/anchors/planets/${id}`, { signal: abortController.signal }),
+          api.get(`/anchors/planets/${id}/thoughts`, { signal: abortController.signal })
         ])
         setPlanet(planetRes.data)
         setThoughts(thoughtsRes.data.thoughts)
       } catch (error) {
-        console.error('Error fetching data:', error)
-        setError('Failed to load planet data')
+        if (!abortController.signal.aborted) {
+          console.error('Error fetching data:', error)
+          setError('Failed to load planet data')
+        }
       } finally {
-        setLoading(false)
+        if (!abortController.signal.aborted) {
+          setLoading(false)
+        }
       }
     }
+
     fetchData()
-  }, [id, navigate])
+
+    return () => abortController.abort()
+  }, [id])
 
   const handleSubmitThought = useCallback(async (e) => {
     e.preventDefault()
@@ -46,7 +78,7 @@ export default function PlanetDetail() {
       const res = await api.post(`/anchors/planets/${id}/thoughts`, {
         content: thoughtContent
       })
-      setThoughts([res.data, ...thoughts])
+      setThoughts(prev => [res.data, ...prev])
       setThoughtContent('')
     } catch (error) {
       console.error('Error submitting thought:', error)
@@ -54,7 +86,13 @@ export default function PlanetDetail() {
     } finally {
       setSubmitting(false)
     }
-  }, [user, id, thoughtContent, thoughts, navigate])
+  }, [user, id, thoughtContent, navigate])
+
+  const memoizedThoughts = useMemo(() =>
+    thoughts.map(thought => (
+      <ThoughtItem key={thought.id} thought={thought} />
+    )), [thoughts]
+  )
 
   if (loading) return <LoadingSpinner />
 
@@ -64,7 +102,11 @@ export default function PlanetDetail() {
     </div>
   )
 
-  if (!planet) return <div>Planet not found</div>
+  if (!planet) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-slate-400">Planet not found</p>
+    </div>
+  )
 
   return (
     <div className="min-h-screen py-8 px-4">
@@ -115,26 +157,7 @@ export default function PlanetDetail() {
         {/* Thoughts List */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Thoughts ({thoughts.length})</h3>
-          {thoughts.map(thought => (
-            <div key={thought.id} className="thought-bubble">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-semibold">{thought.author.displayName}</p>
-                  <p className="text-xs text-slate-400">@{thought.author.username}</p>
-                </div>
-                <span className="text-xs text-slate-400">
-                  {new Date(thought.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="mb-4">{thought.content}</p>
-              <div className="flex space-x-4 text-sm text-slate-400">
-                <button className="hover:text-blue-400">💚 {thought.likes}</button>
-                {thought.status === 'PENDING' && (
-                  <span className="text-yellow-400">Awaiting moderation...</span>
-                )}
-              </div>
-            </div>
-          ))}
+          {memoizedThoughts}
           {thoughts.length === 0 && (
             <p className="text-slate-400 text-center py-8">No thoughts yet. Be the first!</p>
           )}

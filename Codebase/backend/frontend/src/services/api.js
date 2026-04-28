@@ -15,10 +15,41 @@ api.interceptors.request.use(
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`
     }
+    // Add timestamp to prevent stale responses
+    config.params = {
+      ...config.params,
+      _t: Date.now()
+    }
     return config
   },
   (error) => Promise.reject(error)
 )
+
+// Response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+      try {
+        const { refreshAccessToken } = useAuthStore.getState()
+        await refreshAccessToken()
+        const { accessToken } = useAuthStore.getState()
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        return api(originalRequest)
+      } catch (refreshError) {
+        useAuthStore.getState().logout()
+        return Promise.reject(refreshError)
+      }
+    }
+
+    return Promise.reject(error)
+  }
+)
+
+export default api
 
 // Response interceptor
 api.interceptors.response.use(

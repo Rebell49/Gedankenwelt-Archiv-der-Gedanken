@@ -18,13 +18,13 @@ export const useAuthStore = create(
             body: JSON.stringify({ email, password }),
           })
           if (!response.ok) throw new Error('Login failed')
-          
+
           const data = await response.json()
-          set({
+          set(() => ({
             user: data.user,
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
-          })
+          }))
           return data
         } catch (error) {
           console.error('Login error:', error)
@@ -40,13 +40,13 @@ export const useAuthStore = create(
             body: JSON.stringify({ email, username, password }),
           })
           if (!response.ok) throw new Error('Registration failed')
-          
+
           const data = await response.json()
-          set({
+          set(() => ({
             user: data.user,
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
-          })
+          }))
           return data
         } catch (error) {
           console.error('Registration error:', error)
@@ -55,7 +55,7 @@ export const useAuthStore = create(
       },
 
       logout: () => {
-        set({ user: null, accessToken: null, refreshToken: null })
+        set(() => ({ user: null, accessToken: null, refreshToken: null }))
       },
 
       updateProfile: async (updates) => {
@@ -70,9 +70,9 @@ export const useAuthStore = create(
             body: JSON.stringify(updates),
           })
           if (!response.ok) throw new Error('Profile update failed')
-          
+
           const data = await response.json()
-          set({ user: { ...get().user, ...data } })
+          set((state) => ({ user: { ...state.user, ...data } }))
           return data
         } catch (error) {
           console.error('Profile update error:', error)
@@ -89,13 +89,13 @@ export const useAuthStore = create(
             body: JSON.stringify({ refreshToken }),
           })
           if (!response.ok) throw new Error('Token refresh failed')
-          
+
           const data = await response.json()
-          set({ accessToken: data.accessToken })
+          set((state) => ({ accessToken: data.accessToken }))
           return data
         } catch (error) {
           console.error('Token refresh error:', error)
-          set({ user: null, accessToken: null, refreshToken: null })
+          set(() => ({ user: null, accessToken: null, refreshToken: null }))
           throw error
         }
       },
