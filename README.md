@@ -229,6 +229,30 @@ Gedankenwelt-Archiv-der-Gedanken/
             └── Dockerfile
 ```
 
+## Windows one-click archive builder
+
+A helper script is included at the repository root:
+
+```powershell
+cd \path\to\Gedankenwelt-Archiv-der-Gedanken
+powershell -ExecutionPolicy Bypass -File .\windows-package.ps1
+```
+
+If no destination path is provided, the script opens a folder picker and writes `Gedankenwelt-Ready.zip` into that folder.
+
+The archive contains:
+- project source files
+- backend and frontend dependencies
+- built frontend bundle
+- helper `run-local.bat`
+- `README-WINDOWS-PACKAGE.txt` with usage notes
+
+Before running the app, update the env files in:
+- `Codebase/backend/backend/.env`
+- `Codebase/backend/frontend/.env`
+
+For a full production or Docker setup, see the existing instructions earlier in this README.
+
 ---
 
 ## Scaling & Performance
