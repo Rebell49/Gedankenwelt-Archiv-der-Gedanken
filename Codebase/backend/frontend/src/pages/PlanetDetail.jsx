@@ -35,6 +35,12 @@ export default function PlanetDetail() {
   const [error, setError] = useState(null)
   const [thoughtContent, setThoughtContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [pagination, setPagination] = useState({
+    limit: 20,
+    offset: 0,
+    total: 0,
+    hasMore: false,
+  })
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -45,10 +51,18 @@ export default function PlanetDetail() {
         setError(null)
         const [planetRes, thoughtsRes] = await Promise.all([
           api.get(`/anchors/planets/${id}`, { signal: abortController.signal }),
-          api.get(`/anchors/planets/${id}/thoughts`, { signal: abortController.signal })
+          api.get(`/anchors/planets/${id}/thoughts`, {
+            params: { limit: pagination.limit, offset: pagination.offset },
+            signal: abortController.signal
+          })
         ])
         setPlanet(planetRes.data)
         setThoughts(thoughtsRes.data.thoughts)
+        setPagination(prev => ({
+          ...prev,
+          total: thoughtsRes.data.total,
+          hasMore: thoughtsRes.data.thoughts.length === prev.limit,
+        }))
       } catch (error) {
         if (!abortController.signal.aborted) {
           console.error('Error fetching data:', error)
@@ -64,7 +78,7 @@ export default function PlanetDetail() {
     fetchData()
 
     return () => abortController.abort()
-  }, [id])
+  }, [id, pagination.limit, pagination.offset])
 
   const handleSubmitThought = useCallback(async (e) => {
     e.preventDefault()
@@ -156,10 +170,39 @@ export default function PlanetDetail() {
 
         {/* Thoughts List */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Thoughts ({thoughts.length})</h3>
+          <h3 className="text-lg font-semibold">Thoughts ({pagination.total})</h3>
           {memoizedThoughts}
           {thoughts.length === 0 && (
             <p className="text-slate-400 text-center py-8">No thoughts yet. Be the first!</p>
+          )}
+
+          {/* Pagination */}
+          {pagination.total > pagination.limit && (
+            <div className="flex justify-center space-x-4 mt-8">
+              <button
+                onClick={() => setPagination(prev => ({
+                  ...prev,
+                  offset: Math.max(0, prev.offset - prev.limit)
+                }))}
+                disabled={pagination.offset === 0}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-slate-400 self-center">
+                Page {Math.floor(pagination.offset / pagination.limit) + 1} of {Math.ceil(pagination.total / pagination.limit)}
+              </span>
+              <button
+                onClick={() => setPagination(prev => ({
+                  ...prev,
+                  offset: prev.offset + prev.limit
+                }))}
+                disabled={!pagination.hasMore}
+                className="btn-secondary disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           )}
         </div>
       </div>

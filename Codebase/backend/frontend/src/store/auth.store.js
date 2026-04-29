@@ -10,6 +10,19 @@ export const useAuthStore = create(
       accessToken: null,
       refreshToken: null,
 
+      // Initialize auth state on app start
+      initialize: async () => {
+        const { refreshToken } = get()
+        if (refreshToken) {
+          try {
+            await get().refreshAccessToken()
+          } catch (error) {
+            // Token refresh failed, clear state
+            set(() => ({ user: null, accessToken: null, refreshToken: null }))
+          }
+        }
+      },
+
       login: async (email, password) => {
         try {
           const response = await fetch(`${API_URL}/api/auth/login`, {

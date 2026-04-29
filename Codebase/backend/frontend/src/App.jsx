@@ -1,9 +1,10 @@
-import React, { Suspense, lazy } from 'react'
+import React, { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/common/Navbar'
 import LoadingSpinner from './components/common/LoadingSpinner'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import { useAuthStore } from './store/auth.store'
+import { useToast, ToastContainer } from './components/common/Toast'
 
 const Home = lazy(() => import('./pages/Home'))
 const UniverseView = lazy(() => import('./pages/UniverseView'))
@@ -13,7 +14,12 @@ const Profile = lazy(() => import('./pages/Profile'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
-  const { user } = useAuthStore()
+  const { user, initialize } = useAuthStore()
+  const { toasts, removeToast } = useToast()
+
+  useEffect(() => {
+    initialize()
+  }, [initialize])
 
   return (
     <ErrorBoundary>
@@ -30,6 +36,7 @@ export default function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          <ToastContainer toasts={toasts} removeToast={removeToast} />
         </div>
       </Router>
     </ErrorBoundary>

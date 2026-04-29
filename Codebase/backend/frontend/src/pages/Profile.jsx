@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/auth.store'
 import { useNavigate } from 'react-router-dom'
+import api from '../services/api'
 
 export default function Profile() {
   const { user, updateProfile } = useAuthStore()
@@ -12,6 +13,41 @@ export default function Profile() {
     bio: user?.bio || '',
   })
   const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState({
+    thoughts: 0,
+    planets: 0,
+    likes: 0,
+  })
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/')
+      return
+    }
+
+    setFormData({
+      displayName: user.displayName || '',
+      avatar: user.avatar || '',
+      bio: user.bio || '',
+    })
+
+    // Fetch user stats
+    const fetchStats = async () => {
+      try {
+        const profileRes = await api.get('/auth/profile')
+        const userData = profileRes.data
+        setStats({
+          thoughts: userData._count?.createdThoughts || 0,
+          planets: userData._count?.createdPlanets || 0,
+          likes: userData.totalLikes || 0,
+        })
+      } catch (error) {
+        console.error('Error fetching stats:', error)
+      }
+    }
+
+    fetchStats()
+  }, [user, navigate])
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -133,15 +169,15 @@ export default function Profile() {
           {/* Stats */}
           <div className="mt-12 pt-8 border-t border-slate-600 grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-blue-400">0</p>
+              <p className="text-2xl font-bold text-blue-400">{stats.thoughts}</p>
               <p className="text-slate-400 text-sm">Thoughts</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-purple-400">0</p>
+              <p className="text-2xl font-bold text-purple-400">{stats.planets}</p>
               <p className="text-slate-400 text-sm">Planets Created</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-pink-400">0</p>
+              <p className="text-2xl font-bold text-pink-400">{stats.likes}</p>
               <p className="text-slate-400 text-sm">Likes Received</p>
             </div>
           </div>

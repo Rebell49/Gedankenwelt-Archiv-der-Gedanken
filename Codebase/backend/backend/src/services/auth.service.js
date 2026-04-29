@@ -158,7 +158,16 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    return user;
+    // Calculate total likes received
+    const totalLikes = await prisma.thought.aggregate({
+      where: { authorId: userId },
+      _sum: { likes: true },
+    });
+
+    return {
+      ...user,
+      totalLikes: totalLikes._sum.likes || 0,
+    };
   }
 
   async updateProfile(userId, data) {

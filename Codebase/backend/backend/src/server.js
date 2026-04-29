@@ -9,6 +9,7 @@ import anchorsRoutes from './routes/anchors.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { requestLogger } from './middleware/logger.middleware.js';
+import { sanitizeObject } from './middleware/sanitizer.middleware.js';
 import { validateEnv } from '../scripts/validate-env.js';
 import dotenv from 'dotenv';
 
@@ -37,6 +38,17 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// Input sanitization
+app.use((req, res, next) => {
+  if (req.body) {
+    req.body = sanitizeObject(req.body);
+  }
+  if (req.query) {
+    req.query = sanitizeObject(req.query);
+  }
+  next();
+});
+
 // Logging
 app.use(requestLogger);
 
@@ -48,6 +60,16 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
+
+// Stricter rate limiting for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 auth attempts per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many authentication attempts, please try again later.',
+});
+app.use('/api/auth/', authLimiter);
 
 // ===== HEALTH CHECK =====
 app.get('/api/health', async (req, res) => {
