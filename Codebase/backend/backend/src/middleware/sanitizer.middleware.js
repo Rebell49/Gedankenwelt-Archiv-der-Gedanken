@@ -1,12 +1,25 @@
-// Simple input sanitizer
-export const sanitizeInput = (input) => {
+// Input sanitizer with length limits and XSS protection
+export const sanitizeInput = (input, maxLength = 10000) => {
   if (typeof input !== 'string') return input;
 
+  let sanitized = input.trim();
+
+  // Length limit to prevent DoS
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength);
+  }
+
   // Remove potentially dangerous HTML/script tags
-  return input
+  sanitized = sanitized
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<[^>]*>/g, '') // Remove all HTML tags
-    .trim();
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+="[^"]*"/gi, '') // Remove event handlers
+    .replace(/<[^>]*>/g, ''); // Remove all HTML tags
+
+  return sanitized;
 };
 
 // Sanitize object recursively

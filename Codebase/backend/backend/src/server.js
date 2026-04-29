@@ -71,6 +71,16 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/', authLimiter);
 
+// Rate limiting for admin routes
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 admin requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many admin requests, please try again later.',
+});
+app.use('/api/admin/', adminLimiter);
+
 // ===== HEALTH CHECK =====
 app.get('/api/health', async (req, res) => {
   try {

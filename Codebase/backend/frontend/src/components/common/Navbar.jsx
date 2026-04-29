@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/auth.store'
 import { Menu, X, LogOut, User, Settings, BarChart3 } from 'lucide-react'
 import { useState } from 'react'
 
-export default function Navbar() {
+const Navbar = React.memo(() => {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -143,4 +143,6 @@ export default function Navbar() {
       </div>
     </nav>
   )
-}
+})
+
+export default Navbar

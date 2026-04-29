@@ -4,101 +4,110 @@ import { AppError } from '../middleware/errorHandler.middleware.js';
 
 export class ModerationService {
   async moderateThought(thoughtId, content) {
-    try {
-      // Call OpenAI moderation API
-      const response = await axios.post(
-        'https://api.openai.com/v1/moderations',
-        { input: content },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        // Call OpenAI moderation API
+        const response = await axios.post(
+          'https://api.openai.com/v1/moderations',
+          { input: content },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: parseInt(process.env.MODERATION_TIMEOUT_MS || '10000'),
+          }
+        );
+
+        const { results } = response.data;
+        const result = results[0];
+
+        // Determine moderation status
+        let status = 'APPROVED';
+        let flags = [];
+        let isOffensive = false;
+        let isSpam = false;
+
+        if (result.flagged) {
+          status = 'FLAGGED';
+          
+          // Check specific categories
+          const categories = result.categories;
+          if (categories.hate || categories.hate_threatening) {
+            flags.push('hate_speech');
+            isOffensive = true;
+          }
+          if (categories.harassment) {
+            flags.push('harassment');
+            isOffensive = true;
+          }
+          if (categories.violence) {
+            flags.push('violence');
+            isOffensive = true;
+          }
+          if (categories.sexual) {
+            flags.push('sexual_content');
+            isOffensive = true;
+          }
+          if (categories.self_harm) {
+            flags.push('self_harm');
+            isOffensive = true;
+          }
+        }
+
+        // Simple spam detection (very short repetitive content)
+        if (this.isLikelySpam(content)) {
+          flags.push('likely_spam');
+          isSpam = true;
+          status = 'FLAGGED';
+        }
+
+        // Update thought with moderation results
+        const updatedThought = await prisma.thought.update({
+          where: { id: thoughtId },
+          data: {
+            status: status === 'FLAGGED' ? 'FLAGGED' : 'APPROVED',
+            isOffensive,
+            isSpam,
+            flaggedBy: flags.length > 0 ? JSON.stringify(flags) : null,
+            ...(status === 'APPROVED' && { approvedAt: new Date() }),
           },
-          timeout: parseInt(process.env.MODERATION_TIMEOUT_MS || '10000'),
-        }
-      );
-
-      const { results } = response.data;
-      const result = results[0];
-
-      // Determine moderation status
-      let status = 'APPROVED';
-      let flags = [];
-      let isOffensive = false;
-      let isSpam = false;
-
-      if (result.flagged) {
-        status = 'FLAGGED';
-        
-        // Check specific categories
-        const categories = result.categories;
-        if (categories.hate || categories.hate_threatening) {
-          flags.push('hate_speech');
-          isOffensive = true;
-        }
-        if (categories.harassment) {
-          flags.push('harassment');
-          isOffensive = true;
-        }
-        if (categories.violence) {
-          flags.push('violence');
-          isOffensive = true;
-        }
-        if (categories.sexual) {
-          flags.push('sexual_content');
-          isOffensive = true;
-        }
-        if (categories.self_harm) {
-          flags.push('self_harm');
-          isOffensive = true;
-        }
-      }
-
-      // Simple spam detection (very short repetitive content)
-      if (this.isLikelySpam(content)) {
-        flags.push('likely_spam');
-        isSpam = true;
-        status = 'FLAGGED';
-      }
-
-      // Update thought with moderation results
-      const updatedThought = await prisma.thought.update({
-        where: { id: thoughtId },
-        data: {
-          status: status === 'FLAGGED' ? 'FLAGGED' : 'APPROVED',
-          isOffensive,
-          isSpam,
-          flaggedBy: flags.length > 0 ? JSON.stringify(flags) : null,
-          ...(status === 'APPROVED' && { approvedAt: new Date() }),
-        },
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+              },
+            },
+            planet: {
+              select: { id: true, name: true },
             },
           },
-          planet: {
-            select: { id: true, name: true },
-          },
-        },
-      });
+        });
 
-      return updatedThought;
-    } catch (error) {
-      console.error('[MODERATION ERROR]', error.message);
-      
-      // Fallback: approve with manual review flag if API fails
-      const updatedThought = await prisma.thought.update({
-        where: { id: thoughtId },
-        data: {
-          status: 'FLAGGED',
-          flaggedBy: JSON.stringify(['api_error', 'requires_manual_review']),
-        },
-      });
-
-      return updatedThought;
+        return updatedThought;
+      } catch (error) {
+        attempt++;
+        if (attempt >= maxRetries) {
+          console.error('[MODERATION ERROR]', error.message);
+          
+          // Fallback: approve with manual review flag if API fails
+          const updatedThought = await prisma.thought.update({
+            where: { id: thoughtId },
+            data: {
+              status: 'FLAGGED',
+              flaggedBy: JSON.stringify(['api_error', 'requires_manual_review']),
+            },
+          });
+          return updatedThought;
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
     }
   }
 
